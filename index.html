@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solar Yield Estimator</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Forecast-based multi-roof solar estimate</p>
+        <h1>Solar Yield Estimator</h1>
+        <p class="lede">
+          Search for a place, fine-tune the marker on the map, and estimate output for east/west or multi-face roofs.
+        </p>
+      </div>
+    </header>
+
+    <main class="stack">
+      <section class="panel">
+        <h2>Location</h2>
+
+        <div class="controls-row">
+          <input id="placeInput" type="text" placeholder="Search location, e.g. Dublin" />
+          <button id="searchPlaceBtn" class="secondary-btn" type="button">Search</button>
+          <button id="useDublinBtn" class="secondary-btn" type="button">Use Dublin</button>
+          <button id="estimateBtn" class="primary-btn" type="button">Estimate yield</button>
+        </div>
+
+        <div class="settings-grid">
+          <label>
+            Forecast days
+            <input id="daysInput" type="number" min="1" max="16" step="1" value="7" />
+          </label>
+
+          <label>
+            Default system loss (%)
+            <input id="lossInput" type="number" min="0" max="50" step="0.1" value="14" />
+          </label>
+
+          <label>
+            Temperature coefficient (%/°C)
+            <input id="tempCoeffInput" type="number" min="-1" max="0" step="0.01" value="-0.35" />
+          </label>
+
+          <label>
+            NOCT (°C)
+            <input id="noctInput" type="number" min="20" max="70" step="1" value="45" />
+          </label>
+        </div>
+
+        <p class="notes">
+          The forecast always uses the current <strong>map marker position</strong>.
+          Azimuth convention: <strong>0 = south, -90 = east, 90 = west, ±180 = north</strong>.
+        </p>
+      </section>
+
+      <section class="panel">
+        <h2>Map</h2>
+        <div id="map"></div>
+        <p id="locationText" class="muted">Search, click the map, or drag the marker.</p>
+        <p id="markerCoords" class="muted"><strong>Using marker position:</strong> —</p>
+        <p class="tiny muted">
+          Weather data by Open-Meteo. Map tiles © OpenStreetMap contributors.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <h2>Roof faces</h2>
+          <div class="controls-row compact">
+            <button id="addRoofBtn" class="secondary-btn" type="button">Add roof face</button>
+            <button id="loadEastWestBtn" class="secondary-btn" type="button">Load east / west example</button>
+          </div>
+        </div>
+
+        <div id="roofFaces"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Summary</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">System size</span>
+            <strong id="systemSizeStat">—</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Forecast total</span>
+            <strong id="totalStat">—</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Best day</span>
+            <strong id="bestDayStat">—</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Peak hour</span>
+            <strong id="peakHourStat">—</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Hourly estimate</h2>
+        <canvas id="hourlyChart"></canvas>
+      </section>
+
+      <section class="panel">
+        <h2>Daily estimate</h2>
+        <canvas id="dailyChart"></canvas>
+      </section>
+
+      <section class="panel">
+        <h2>Roof face totals</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Roof face</th>
+                <th>Orientation</th>
+                <th>System size (kWp)</th>
+                <th>Forecast total (kWh)</th>
+              </tr>
+            </thead>
+            <tbody id="roofTotalsBody">
+              <tr><td colspan="4">Run an estimate to see results.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Daily totals</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Estimated yield (kWh)</th>
+                <th>Peak hour (kWh)</th>
+                <th>Cloud cover avg (%)</th>
+              </tr>
+            </thead>
+            <tbody id="dailyTableBody">
+              <tr><td colspan="4">Run an estimate to see results.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="roofFaceTemplate">
+    <div class="roof-card">
+      <div class="roof-card-head">
+        <h3 class="roof-title">Roof face</h3>
+        <button class="danger-btn remove-roof-btn" type="button">Remove</button>
+      </div>
+
+      <div class="roof-grid">
+        <label>
+          Name
+          <input class="roof-name" type="text" value="Roof face" />
+        </label>
+
+        <label>
+          Panel count
+          <input class="roof-panel-count" type="number" min="1" step="1" value="10" />
+        </label>
+
+        <label>
+          Panel wattage (W)
+          <input class="roof-panel-watt" type="number" min="1" step="1" value="425" />
+        </label>
+
+        <label>
+          Tilt (°)
+          <input class="roof-tilt" type="number" min="0" max="90" step="1" value="35" />
+        </label>
+
+        <label>
+          Azimuth
+          <input class="roof-azimuth" type="number" min="-180" max="180" step="1" value="0" />
+        </label>
+
+        <label>
+          Loss override (%) optional
+          <input class="roof-loss" type="number" min="0" max="50" step="0.1" placeholder="Use default" />
+        </label>
+      </div>
+    </div>
+  </template>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
