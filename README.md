@@ -2,7 +2,7 @@
 
 This version supports **multiple roof faces**, which is the minimum needed for a real east-west domestic system.
 
-## New in v2
+## New in v2.0
 
 - Multiple roof faces
 - Each roof face has its own:
